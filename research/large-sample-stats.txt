@@ -1,0 +1,22 @@
+unique v8 uuids: 4565
+time span: 2024-09-12 .. 2026-11-04
+
+seg2 low 2 bits: {0: 4565}  (layout predicts only 0)
+seg2>>2 before 2024-10-28: n=1175 max=15235 (ns>>16 model predicts <=15258)
+seg2>>2 after  2024-10-28: n=3390 max=16382 mean=8191 (uniform predicts ~8191)
+
+node ids seen: 81; top: [('0x12', 237), ('0x4', 225), ('0xc', 210), ('0x10', 201), ('0x11', 201), ('0xf', 187), ('0xb', 186), ('0x6', 183), ('0xa', 180), ('0xe', 180), ('0x3', 179), ('0x9', 178)]
+nodes per month (distinct): {'2024-09': 20, '2024-10': 20, '2024-11': 20, '2024-12': 20, '2025-01': 17, '2025-02': 19, '2025-03': 20, '2025-04': 20, '2025-05': 21, '2025-06': 20, '2025-07': 20, '2025-08': 20, '2025-09': 20, '2025-10': 20, '2025-11': 20, '2025-12': 20, '2026-01': 20, '2026-02': 19, '2026-03': 34, '2026-04': 45, '2026-05': 34, '2026-06': 18, '2026-07': 7, '2026-08': 7, '2026-09': 7, '2026-10': 7, '2026-11': 5}
+
+per-bit ones count, 62 bits, n=4565: worst |z| = 2.71 at bit 14 (k=2191); bits with |z|>3: 0 (expect ~0.17)
+nibble chi-square (15 nibbles x 15 df = 225 df): 219.4  (mean 225, sd 21.2; >280 is suspicious)
+bits 60-61 distribution: {0: 1154, 1: 1117, 2: 1159, 3: 1135}
+lag-1 serial correlation (time order): -0.0039  (random ~0 +/- 0.0148)
+same-node consecutive pairs: 871, fraction increasing 0.506 (counter -> ~1.0, random -> 0.5)
+Hamming distance time-adjacent (62 bits): mean 31.01, min 16, max 44 (random 31.0 +/- 3.94)
+collisions on top 32 bits of random field: 0 (birthday expectation 0.002)
+
+seconds holding >1 id: 3
+   1727990616 [('0x19c4', '0x12', '0x41fc00'), ('0xc9e8', '0x3', '0x364f58')]
+   1748189252 [('0x1548', '0xe', '0x284e5f'), ('0xd5a4', '0x1', '0xfc687e')]
+   1781371867 [('0x6110', '0x3ec', '0x215ac2'), ('0xe3c8', '0x3ec', '0x15b19e')]
