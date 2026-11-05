@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Share Link Entropy</title>
+<meta name="description" content="Can ChatGPT share links be guessed? TL;DR and visual summary of the UUIDv8 analysis, 2026-11-05.">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#fcfcfb; --surface:#f3f3f1; --line:#dcdbd6;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-3:#7a7974;
+  --bar:#2a78d6; --bar-soft:#9ec5f4;
+  --f-ts:#2a78d6; --f-sub:#1baf7a; --f-ver:#7a7974; --f-node:#eb6834; --f-var:#7a7974; --f-rnd:#6250d6;
+  --good:#0ca30c; --crit:#d03b3b; --warn:#fab219;
+  --mono:ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#1a1a19; --surface:#232322; --line:#383835;
+    --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#8f8e87;
+    --bar:#3987e5; --bar-soft:#1c5cab;
+    --f-ts:#3987e5; --f-sub:#199e70; --f-ver:#8f8e87; --f-node:#d95926; --f-var:#8f8e87; --f-rnd:#9085e9;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#1a1a19; --surface:#232322; --line:#383835;
+  --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#8f8e87;
+  --bar:#3987e5; --bar-soft:#1c5cab;
+  --f-ts:#3987e5; --f-sub:#199e70; --f-ver:#8f8e87; --f-node:#d95926; --f-var:#8f8e87; --f-rnd:#9085e9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:880px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:2rem;line-height:1.15;margin:0 0 4px;letter-spacing:-.01em}
+h2{font-size:1.15rem;margin:40px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+p{margin:8px 0;max-width:70ch}
+.sub{color:var(--ink-2);margin:0 0 20px}
+.verdict{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px}
+.badge{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;padding:6px 12px;border-radius:999px;border:2px solid var(--crit);color:var(--crit);white-space:nowrap}
+.badge.good{border-color:var(--good);color:var(--good)}
+.badge svg{width:14px;height:14px}
+.verdict p{margin:4px 0}
+.big{font-size:1.25rem;font-weight:600;line-height:1.35}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:20px 0}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kpi .n{font-size:1.7rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--ink-2);font-size:.85rem}
+.uuid{font-family:var(--mono);font-size:clamp(.9rem,2.6vw,1.35rem);letter-spacing:.02em;word-break:break-all;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0 8px}
+.uuid b{font-weight:600;padding:2px 0;border-bottom:3px solid}
+.f-ts{color:var(--f-ts);border-color:var(--f-ts)} .f-sub{color:var(--f-sub);border-color:var(--f-sub)}
+.f-ver{color:var(--f-ver);border-color:var(--f-ver)} .f-node{color:var(--f-node);border-color:var(--f-node)}
+.f-var{color:var(--f-var);border-color:var(--f-var)} .f-rnd{color:var(--f-rnd);border-color:var(--f-rnd)}
+.dash{color:var(--ink-3)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:12px 0}
+.field{border-left:4px solid;padding:6px 12px;background:var(--surface);border-radius:0 8px 8px 0}
+.field .t{font-weight:600;font-size:.95rem}
+.field .d{color:var(--ink-2);font-size:.85rem}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.93rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--ink-2);font-weight:600;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:.88rem}
+code{font-family:var(--mono);font-size:.9em;background:var(--surface);padding:1px 5px;border-radius:4px}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 16px 8px;margin:12px 0;position:relative}
+.chart h3{margin:0 0 2px;font-size:1rem}
+.chart .cap{color:var(--ink-2);font-size:.85rem;margin:0 0 8px}
+.plot{overflow-x:auto}
+.plot svg{width:100%;min-width:720px;height:auto;display:block;overflow:visible}
+.tt{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.82rem;padding:6px 9px;border-radius:6px;opacity:0;transition:opacity .08s;white-space:nowrap;transform:translate(-50%,-110%)}
+.tt b{font-family:var(--mono)}
+.callout{border-left:4px solid var(--warn);background:var(--surface);padding:12px 16px;border-radius:0 10px 10px 0;margin:16px 0}
+ul{padding-left:22px}
+li{margin:4px 0}
+.src a{color:inherit}
+footer{color:var(--ink-3);font-size:.82rem;margin-top:40px;border-top:1px solid var(--line);padding-top:12px}
+@media (max-width:560px){.verdict{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>Can a ChatGPT share link be guessed?</h1>
+<p class="sub">UUIDv8 entropy check of <code>chatgpt.com/share/&lt;id&gt;</code> · five own samples plus 4,565 public links · 2026-11-05</p>
+
+<section class="verdict" aria-label="Verdict">
+  <span class="badge good" role="img" aria-label="Not reportable">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+    Not reportable
+  </span>
+  <div>
+    <p class="big">No. The link ID holds 62 random bits behind a timestamp. With a botnet at 10 million requests per second, and the exact second the link was made, the expected time to one hit is 360 million years.</p>
+    <p>The theory of limited entropy is half right and does not matter. The random field is 62 bits, not 78, because the second segment is sub-second time and the third is a shard id. Two public write-ups documented this layout before 2026-11-05. A test on 4,565 public share links from 26 months finds no bias, no counter and no serial structure in the 62 bits. An independent adversarial review in a second, independent analysis returned <strong>upheld with corrections</strong>. The corrections are on this page.</p>
+    <p><a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/review/REVIEW.md">Adversarial review</a>, same day: upheld with corrections. The sub-second field matches the share API clock within 4.3 to 5.3 ms on all five links, and 4,565 public share IDs pass per-bit, byte and serial tests.</p>
+  </div>
+</section>
+
+<div class="kpis" aria-label="Key numbers">
+  <div class="kpi"><div class="n">62</div><div class="l">random bits per link (CSPRNG-looking)</div></div>
+  <div class="kpi"><div class="n">2<sup>77.6</sup></div><div class="l">search space, exact second known, 3-node floor (7 nodes: 2<sup>78.8</sup>)</div></div>
+  <div class="kpi"><div class="n">44 to 53</div><div class="l">random bits at which a targeted guess starts to work (one day to one year at 10<sup>8</sup> requests per second), attacker-favorable assumptions</div></div>
+  <div class="kpi"><div class="n">4,565</div><div class="l">public links tested, every statistic on the random expectation</div></div>
+</div>
+
+<h2>Anatomy of one link ID</h2>
+<p>The first of the five samples, colored by field. The five samples match two public analyses (about 284,000 and about 440,000 IDs) and a corpus of 4,565 public share IDs tested in this repository (<a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/research/large-sample.md"><code>research/large-sample.md</code></a>) on every boundary.</p>
+<div class="uuid" aria-label="UUID with fields highlighted">
+  <b class="f-ts">6aec6686</b><span class="dash">-</span><b class="f-sub">4d9c</b><span class="dash">-</span><b class="f-ver">8</b><b class="f-node">3ed</b><span class="dash">-</span><b class="f-var">b</b><b class="f-rnd">905</b><span class="dash">-</span><b class="f-rnd">76a831afef31</b>
+</div>
+<div class="fields">
+  <div class="field" style="border-color:var(--f-ts)"><div class="t">32 bits · Unix seconds</div><div class="d">2026-11-05 11:20:38 UTC. Time of link creation, not of the chat. Known to anyone who sees the link, and guessable by anyone who knows when the owner shared.</div></div>
+  <div class="field" style="border-color:var(--f-sub)"><div class="t">14 + 2 bits · sub-second</div><div class="d">Fraction of a second, then two bits that are always <code>00</code>. The review compared it with the share record's own <code>create_time</code>: all five match within 4.3 to 5.3 ms. Chance that five random values all land in a 12 ms window: 2.5e-10.</div></div>
+  <div class="field" style="border-color:var(--f-ver)"><div class="t">4 bits · version 8</div><div class="d">RFC 9562 custom layout. Fixed.</div></div>
+  <div class="field" style="border-color:var(--f-node)"><div class="t">12 bits · node id</div><div class="d"><code>3ed</code> = node 1005, <code>3eb</code> = node 1003. Shard ids in deliberate decimal ranges. Seven values (nodes 1000 to 1006) are current, and 81 values appeared over the format's lifetime. About 20 were active at a time in 2025. Same across accounts, so not account-bound.</div></div>
+  <div class="field" style="border-color:var(--f-var)"><div class="t">2 bits · variant</div><div class="d">Always <code>10</code>, so the fourth group starts with 8, 9, a or b. Fixed.</div></div>
+  <div class="field" style="border-color:var(--f-rnd)"><div class="t">62 bits · random</div><div class="d">The only secret. Every test on the five samples is consistent with a cryptographic random source.</div></div>
+</div>
+
+<h2>How long would guessing take?</h2>
+<div class="chart" id="chart">
+  <h3>Expected years to one targeted hit at 10 million requests per second</h3>
+  <p class="cap">Log scale. Each bar is one attacker knowledge scenario. The hollow bar is a hypothetical weak design with 32 random bits, shown for contrast. The dashed line is the age of the universe. Node count is taken as 3, the attacker-favorable floor; the real count is 7 or more.</p>
+  <div class="plot"><svg viewBox="0 0 840 300" role="img" aria-labelledby="ct">
+    <title id="ct">Horizontal bar chart on a log scale. Five scenarios from 0.33 years to 31 trillion years. Age of the universe marked at 13.8 billion years.</title>
+    <!-- x scale: log10 from -1 to 14 maps to x 270..780 ; px per decade = 34 -->
+    <g font-size="12" fill="var(--ink-3)" text-anchor="middle">
+      <line x1="270" y1="258" x2="780" y2="258" stroke="var(--line)"/>
+      <g id="ticks"></g>
+    </g>
+    <!-- universe line at log10(1.38e10)=10.14 -> x = 270+11.14*34 = 648.8 -->
+    <line x1="648.8" y1="20" x2="648.8" y2="258" stroke="var(--ink-3)" stroke-dasharray="4 4"/>
+    <text x="648.8" y="14" font-size="11" fill="var(--ink-2)" text-anchor="middle">age of the universe · 1.4e10 y</text>
+    <g id="bars" font-size="13"></g>
+  </svg></div>
+  <div class="tt" id="tt"></div>
+  <table aria-label="Chart data as a table">
+    <thead><tr><th>Scenario</th><th class="num">Search space</th><th class="num">Years at 10⁷ req/s</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+<p>Untargeted guessing fares no better. With 1,000 links created per second platform-wide and a botnet running for a year, the expected number of hits is 0.0000014. At 100 links per second and 100,000 requests per second, untargeted guessing starts to work near 32 random bits. At the botnet rate above, the threshold is near 43. A targeted guess starts to work at about 44 to 53 random bits (one day to one year at 10<sup>8</sup> requests per second) under attacker-favorable assumptions. The field has 62. With the seven current nodes the second-known space is 2<sup>78.8</sup> instead of 2<sup>77.6</sup>, which makes the search harder, and the chart keeps the attacker-favorable three-node figure.</p>
+
+<h2>What the five samples show</h2>
+<table>
+  <thead><tr><th>Test on the 78 non-fixed bits</th><th>Result</th><th>Random expectation</th></tr></thead>
+  <tbody>
+    <tr><td>Hamming distance, 10 pairs</td><td class="num">33 to 46</td><td class="num">39 ± 4.4</td></tr>
+    <tr><td>Monotonic deltas in segment 2, 4 or 5 (counter test)</td><td>none</td><td>none</td></tr>
+    <tr><td>Bit positions constant in all five samples</td><td class="num">5</td><td class="num">4.9</td></tr>
+    <tr><td>Low two bits of segment 2</td><td><code>00</code> five times</td><td>P = 1/1024 if random</td></tr>
+    <tr><td>Ones fraction</td><td class="num">0.459</td><td class="num">0.5 ± 0.025</td></tr>
+  </tbody>
+</table>
+<p>Reading: segment 2 is structured, as the sub-second model predicts. The remaining 62 bits show no structure. Five samples cannot prove a cryptographic source, but they do rule out a plain counter, and the 4,565-ID corpus in <code>research/</code> raises the bar: no bias, no counter, no serial structure.</p>
+
+<h2>What 4,565 public share links show</h2>
+<p>Links harvested from GitHub code search on 2026-11-05, with embedded creation dates from 2024-09-12 to 2026-11-04. Script: <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/scripts/corpus_stats.py"><code>scripts/corpus_stats.py</code></a>, self-tested against synthetic random and counter corpora. Full output in <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/research/large-sample-stats.txt"><code>research/large-sample-stats.txt</code></a>.</p>
+<table>
+  <thead><tr><th>Test on the 62-bit field (n = 4,565)</th><th class="num">Result</th><th class="num">Random expectation</th></tr></thead>
+  <tbody>
+    <tr><td>Low two bits of segment 2 equal <code>00</code></td><td class="num">4,565 / 4,565</td><td class="num">layout: all</td></tr>
+    <tr><td>Sub-second max before 2024-10-28 (n = 1,175)</td><td class="num">15,235</td><td class="num">ns&gt;&gt;16 model: ≤ 15,258</td></tr>
+    <tr><td>Sub-second mean after 2024-10-28 (n = 3,390)</td><td class="num">8,191</td><td class="num">uniform: 8,191</td></tr>
+    <tr><td>Per-bit ones count, worst z of 62 bits</td><td class="num">2.71</td><td class="num">0 bits with z &gt; 3 expected ~0.17</td></tr>
+    <tr><td>Nibble chi-square, 225 degrees of freedom</td><td class="num">219.4</td><td class="num">225 ± 21</td></tr>
+    <tr><td>Lag-1 serial correlation in time order</td><td class="num">−0.004</td><td class="num">0 ± 0.015</td></tr>
+    <tr><td>Same-node consecutive pairs that increase</td><td class="num">0.506</td><td class="num">0.5 random, ~1.0 counter</td></tr>
+    <tr><td>Hamming distance, time-adjacent ids</td><td class="num">31.0 (16 to 44)</td><td class="num">31.0 ± 3.9</td></tr>
+    <tr><td>Collisions on the top 32 random bits</td><td class="num">0</td><td class="num">0.002</td></tr>
+  </tbody>
+</table>
+<p>Reading: the 62-bit field is indistinguishable from a cryptographic random source. The tests catch counters, biased bits and linear structure. They cannot catch a well-seeded non-cryptographic generator spread across many processes, and no public corpus can.</p>
+
+<h2>Live probe, three requests</h2>
+<table>
+  <thead><tr><th>Request</th><th>Response</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET /share/&lt;synthetic well-formed v8 id, not a known share&gt;</code></td><td>HTTP 404, empty body</td></tr>
+    <tr><td><code>GET /backend-api/share/&lt;same fake&gt;</code></td><td>HTTP 404, JSON</td></tr>
+    <tr><td><code>GET /backend-api/share/6aec6686-…</code> (the owner's real link)</td><td>HTTP 200, 12.6 KB JSON, no login needed</td></tr>
+  </tbody>
+</table>
+<p>The endpoint is a clean existence oracle, and the owner's own share opens without login. Neither fact matters while the space is 2<sup>77.6</sup>.</p>
+
+<div class="callout">
+  <strong>About the "6% hit rate" blog post.</strong> A Substack article claims that random v8-shaped ids hit real shares 6% of the time. A 6% rate would need 7 to 14 bits of total entropy. The post counted an HTTP 200 page that lacked the 'Can't load shared conversation' text as a hit, a test that misfires on Cloudflare challenge pages. It gave no request count and showed no real link. On 2026-11-05 the page returned 404 for a nonexistent id. The claim is unsupported.
+</div>
+
+<h2>Adversarial review: upheld with corrections</h2>
+<p>A second, independent analysis reviewed this page with the brief in <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/HANDOVER-adversarial-review.md"><code>HANDOVER-adversarial-review.md</code></a>. Its report is <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/review/REVIEW.md"><code>review/REVIEW.md</code></a>. It re-derived the layout, reran the arithmetic, ran its own bit tests on 692 GitHub ids and on the 4,565, and read the share records of the five own links.</p>
+<table>
+  <thead><tr><th>Item</th><th>Finding</th></tr></thead>
+  <tbody>
+    <tr><td>Layout</td><td>Confirmed. The 14-bit field matches the server <code>create_time</code> on all five links. A counter reading of segment 2 is refuted.</td></tr>
+    <tr><td>Node count</td><td>Corrected. Seven nodes (1000 to 1006) issue share ids since 2026-07, 81 over the lifetime. With 7 nodes the second-known space is 2<sup>78.8</sup>. The error ran in the author's favor.</td></tr>
+    <tr><td>Math</td><td>Every number on this page reproduces. Flip point for a targeted guess: about 44 to 53 random bits (one day to one year at 10<sup>8</sup> requests per second).</td></tr>
+    <tr><td>Generator</td><td>Confirmed on first-order tests. State recovery (Mersenne Twister, xorshift, LCG) is untested and cannot be tested from one account: it needs hundreds of consecutive outputs from one worker, and other users' draws interleave.</td></tr>
+    <tr><td>Source attribution</td><td>Corrected. The "181,000 ids" figure was a timestamp check on conversation ids, not a bit-distribution study. The bit-balance claim is one sentence over about 284,000 mixed ids.</td></tr>
+    <tr><td>Endpoint</td><td>Contradicts a third-party 403 report cited in the research notes (public-record.md section 6, now annotated with the measured 200). Deleted and nonexistent ids return the same error code.</td></tr>
+  </tbody>
+</table>
+
+<h2>Answers to the open questions</h2>
+<ul>
+  <li><strong>Timestamp meaning:</strong> link creation. Confirmed by the share record's <code>create_time</code>. The first four links are 28, 9 and 19 seconds apart.</li>
+  <li><strong>83eb / 83ed:</strong> shard ids 1003 and 1005, two of the seven current nodes 1000 to 1006. Shared across accounts and OpenAI products. Not account or user bound.</li>
+  <li><strong>Same-second ids:</strong> three same-second pairs in the corpus, one on the same node. They share only the second and the node.</li>
+  <li><strong>Counters or correlations in the 78 bits:</strong> 16 of them are time. The other 62 show none.</li>
+  <li><strong>Re-share, update, delete behavior:</strong> not tested. These need a logged-in session. Note from the review: a deleted id and a nonexistent id return the same error code.</li>
+  <li><strong>Unauthenticated access to own link:</strong> yes, confirmed by the probe.</li>
+</ul>
+
+<h2>When would this become reportable?</h2>
+<p>Only with one of three proofs, each possible on the researcher's own links: a predictor that names the 62-bit field of the researcher's next share link before it exists, a collision or reuse of the 62 bits across two links, or a derivation of the 62 bits from known inputs. If the bits were predictable, the severity would be P2 for targeted reads and P1 for mass harvest, with a $20,000 base for a critical ChatGPT finding. Pure guessing against the live service never qualifies. OpenAI's Bugcrowd brief excludes brute force and asks for a working proof of concept. RFC 9562 section 8 already says that UUIDs must not be the only access control. A timestamp plus 62 CSPRNG bits is the standard answer to that rule.</p>
+
+<h2 class="src">Sources</h2>
+<ul class="src">
+  <li><a href="https://hindsig.ht/blog/decoding-chatgpt-ids/">Hindsight Foundry, Extracting Timestamps from ChatGPT IDs</a>. Layout, node ranges, about 284,000 ids.</li>
+  <li><a href="https://github.com/RyanDFIR/unfurl/pull/292">unfurl pull request 292, ChatGPT and OpenAI ID parser</a>. Same layout, share ids included, about 440,000 archived ids.</li>
+  <li><a href="https://promptjourneys.substack.com/p/easily-guess-chatgpts-share-links">Substack, How To EASILY! Guess ChatGPT's Share Links</a>. Unsupported claim.</li>
+  <li><a href="https://bugcrowd.com/engagements/openai">OpenAI Bugcrowd program</a>. Brief needs login.</li>
+  <li>RFC 9562, sections 5.8 (UUIDv8), 6.9 (unguessability), 8 (security).</li>
+  <li>Adversarial review, a second, independent analysis: <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/review/REVIEW.md"><code>review/REVIEW.md</code></a>, with <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/review/recompute.py"><code>review/recompute.py</code></a> and <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/review/corpus_stats.py"><code>review/corpus_stats.py</code></a>.</li>
+  <li>Deep research on the generator, OpenAI statements, public corpora and prior reports: <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/research/public-record.md"><code>research/public-record.md</code></a>. Short form: the layout matches no public library or draft, so it is in-house. No OpenAI statement on it was found. No prior bounty report on predictable ChatGPT ids was found.</li>
+  <li>Scripts: <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/scripts/uuid8.py"><code>scripts/uuid8.py</code></a> (decode and bit tests), <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/scripts/cost.py"><code>scripts/cost.py</code></a> (attack cost), <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/scripts/corpus_stats.py"><code>scripts/corpus_stats.py</code></a> (large sample). Long form: <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/report.md"><code>report.md</code></a>, <a href="https://github.com/pepsi133/ths2027_openai_urls/blob/main/research/large-sample.md"><code>research/large-sample.md</code></a>.</li>
+</ul>
+
+<footer>Five samples from one account, 2026-11-05 11:20 to 11:25 UTC, plus 4,565 share-link ids already public on GitHub. Ten live requests to the share endpoints across both analyses: eight on the owner's own ids, one on an own id with the last hex digit changed, one on a synthetic id. One further fetch read robots.txt. No other accounts or links were touched.<br>Source, data and review: <a href="https://github.com/pepsi133/ths2027_openai_urls">https://github.com/pepsi133/ths2027_openai_urls</a></footer>
+</main>
+
+<script>
+(function(){
+  const data=[
+    {k:"Oracle: second, sub-second, shard",space:"2^62",years:7.31e3,hollow:false},
+    {k:"Knows the exact second",space:"2^77.6",years:3.59e8,hollow:false},
+    {k:"Knows the hour",space:"2^89.4",years:1.29e12,hollow:false},
+    {k:"Knows the day",space:"2^94.0",years:3.10e13,hollow:false},
+    {k:"Hypothetical 32-bit field, second known",space:"2^47.6",years:0.334,hollow:true},
+  ];
+  const x0=270,x1=780,lo=-1,hi=14,pxd=(x1-x0)/(hi-lo);
+  const X=v=>x0+(Math.log10(v)-lo)*pxd;
+  const fmt=v=>{if(v<1)return v.toFixed(2)+" y";const e=Math.floor(Math.log10(v));const m=v/10**e;return (e<4?Math.round(v).toLocaleString():m.toFixed(1)+"e"+e)+" y"};
+  const ticks=document.getElementById("ticks");
+  for(let e=0;e<=14;e+=2){const x=x0+(e-lo)*pxd;ticks.insertAdjacentHTML("beforeend",`<line x1="${x}" y1="258" x2="${x}" y2="263" stroke="var(--line)"/><text x="${x}" y="278">1e${e}</text>`)}
+  ticks.insertAdjacentHTML("beforeend",`<text x="${(x0+x1)/2}" y="296" fill="var(--ink-2)">years (log scale)</text>`);
+  const bars=document.getElementById("bars"),tb=document.getElementById("tbody"),tt=document.getElementById("tt"),chart=document.getElementById("chart");
+  const rowH=44,top=32,bh=18;
+  data.forEach((d,i)=>{
+    const y=top+i*rowH,w=Math.max(X(d.years)-x0,2);
+    const fill=d.hollow?"none":"var(--bar)",stroke=d.hollow?"var(--bar)":"none";
+    bars.insertAdjacentHTML("beforeend",
+      `<g class="bar" data-i="${i}">
+        <text x="${x0-10}" y="${y+bh/2+4}" text-anchor="end" fill="var(--ink)" font-size="12">${d.k}</text>
+        <rect x="${x0}" y="${y-8}" width="${x1-x0}" height="${bh+16}" fill="transparent"/>
+        <path d="M${x0} ${y} H${x0+w-4} a4 4 0 0 1 4 4 v${bh-8} a4 4 0 0 1 -4 4 H${x0} Z" fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-dasharray="${d.hollow?'5 3':'0'}"/>
+        <text x="${x0+w+8}" y="${y+bh/2+4}" fill="var(--ink-2)" font-size="12" font-family="var(--mono)" paint-order="stroke" stroke="var(--surface)" stroke-width="5" stroke-linejoin="round">${fmt(d.years)}</text>
+      </g>`);
+    tb.insertAdjacentHTML("beforeend",`<tr><td>${d.k}</td><td class="num">${d.space}</td><td class="num">${d.years.toExponential(2)}</td></tr>`);
+  });
+  bars.addEventListener("mousemove",ev=>{const g=ev.target.closest(".bar");if(!g){tt.style.opacity=0;return}
+    const d=data[+g.dataset.i];const r=chart.getBoundingClientRect();
+    tt.innerHTML=`${d.k}<br>space <b>${d.space}</b> · <b>${d.years.toExponential(2)}</b> years`;
+    tt.style.left=(ev.clientX-r.left)+"px";tt.style.top=(ev.clientY-r.top-8)+"px";tt.style.opacity=1});
+  bars.addEventListener("mouseleave",()=>tt.style.opacity=0);
+})();
+</script>
+</body>
+</html>

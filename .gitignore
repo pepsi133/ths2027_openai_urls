@@ -1,0 +1,23 @@
+# Never commit browser state or credentials
+profile/
+*profile*/
+*.cookies
+cookies*.json
+storage_state*.json
+*token*
+*.env
+.env*
+# Raw harvest contains third-party text (emails); derived id lists are kept
+research/cdx/gh_fragments.jsonl
+research/cdx/gh_err.log
+research/cdx/*.html
+# Local junk
+.remember/
+__pycache__/
+*.pyc
+*.png
+*.jsonl
+gh_err.log
+research/live-tests.json
+scripts/live_tests.py
+research/cdx/gh_uuids.txt
